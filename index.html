@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Phase Mapping System — ระบบจับคู่และสร้างรหัสเฟสงานอัตโนมัติ</title>
+
+<!-- Tailwind (Play CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- SheetJS (Excel / CSV) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          display: ['Sora', 'sans-serif'],
+          sans: ['Manrope', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background:
+      radial-gradient(1100px 560px at 88% -8%, rgba(187,247,208,.55), transparent 60%),   /* soft green */
+      radial-gradient(900px 520px at -8% 8%,  rgba(191,219,254,.55), transparent 58%),     /* soft blue  */
+      radial-gradient(900px 520px at 50% 115%, rgba(254,215,170,.45), transparent 55%),    /* soft orange*/
+      #f4f9ff;
+    background-attachment: fixed;
+  }
+  .glass { background: rgba(255,255,255,.78); backdrop-filter: blur(10px); }
+  .ring-grid { background-image:
+      linear-gradient(rgba(37,99,235,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37,99,235,.04) 1px, transparent 1px);
+    background-size: 28px 28px; }
+  .card { box-shadow: 0 8px 30px -12px rgba(37,99,235,.18), 0 2px 8px -4px rgba(15,23,42,.08); }
+  .dropzone-active { border-color:#2563eb !important; background:rgba(59,130,246,.08) !important; }
+  ::-webkit-scrollbar{height:10px;width:10px}
+  ::-webkit-scrollbar-thumb{background:#bfdbfe;border-radius:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+  .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+  .fade-in{animation:fade .4s ease both}@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  details>summary{list-style:none;cursor:pointer}details>summary::-webkit-details-marker{display:none}
+  .pill{font-variant-numeric:tabular-nums}
+</style>
+</head>
+
+<body class="font-sans text-slate-700 min-h-screen ring-grid">
+
+<!-- ============================ HEADER ============================ -->
+<header class="sticky top-0 z-40 glass border-b border-blue-100">
+  <div class="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+    <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 grid place-items-center shadow-lg shadow-blue-300/50">
+      <svg viewBox="0 0 24 24" class="h-6 w-6 text-white" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg>
+    </div>
+    <div class="min-w-0">
+      <h1 class="font-display font-700 text-base sm:text-lg leading-tight text-slate-800 truncate">Phase Mapping System</h1>
+      <p class="text-[11px] sm:text-xs text-slate-500 leading-tight">ระบบจับคู่และสร้างรหัสเฟสงานอัตโนมัติ · <span class="font-mono text-blue-600">[Schedule]-[Section]-[XX]-[Running]</span></p>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <span id="dbStatus" class="hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+        <span class="h-2 w-2 rounded-full bg-slate-400"></span> Supabase: ไม่ได้เชื่อมต่อ
+      </span>
+      <button onclick="openSettings()" class="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-white hover:bg-blue-50 text-slate-700 border border-blue-200 shadow-sm transition">
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.31.22.66.22 1Z"/></svg>
+        ตั้งค่า
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+  <!-- Stack chips with expandable explanations -->
+  <div class="flex flex-wrap items-center gap-2 text-xs">
+    <span class="text-slate-500 mr-1">Tech Stack:</span>
+    <details class="group"><summary class="px-2.5 py-1 rounded-full bg-white border border-blue-200 hover:border-blue-400 shadow-sm transition font-mono text-slate-700">HTML5</summary>
+      <span class="block mt-1 text-slate-500 max-w-md">โครงสร้างหน้าเว็บแบบ Single Page Application ทำงานได้ทันทีบน GitHub Pages โดยไม่ต้องมี build step</span></details>
+    <details class="group"><summary class="px-2.5 py-1 rounded-full bg-white border border-blue-200 hover:border-blue-400 shadow-sm transition font-mono text-slate-700">Tailwind CSS</summary>
+      <span class="block mt-1 text-slate-500 max-w-md">Utility-first CSS framework จัดธีมสดใส โทนน้ำเงิน · เขียวอ่อน · ส้มอ่อน</span></details>
+    <details class="group"><summary class="px-2.5 py-1 rounded-full bg-white border border-blue-200 hover:border-blue-400 shadow-sm transition font-mono text-slate-700">Vanilla JS (ES6+)</summary>
+      <span class="block mt-1 text-slate-500 max-w-md">Rule-Based Engine สำหรับวิเคราะห์ Description → Section Code และรันเลข Running Number อัตโนมัติ</span></details>
+    <details class="group"><summary class="px-2.5 py-1 rounded-full bg-white border border-blue-200 hover:border-blue-400 shadow-sm transition font-mono text-slate-700">SheetJS</summary>
+      <span class="block mt-1 text-slate-500 max-w-md">อ่าน/เขียนไฟล์ Excel (.xlsx) และ CSV ทั้งฝั่งนำเข้าและส่งออก</span></details>
+    <details class="group"><summary class="px-2.5 py-1 rounded-full bg-white border border-blue-200 hover:border-blue-400 shadow-sm transition font-mono text-slate-700">PDF.js</summary>
+      <span class="block mt-1 text-slate-500 max-w-md">แกะ Text Layer จากไฟล์ PDF เพื่อดึงคอลัมน์ Item No. และ Description</span></details>
+    <details class="group"><summary class="px-2.5 py-1 rounded-full bg-white border border-blue-200 hover:border-blue-400 shadow-sm transition font-mono text-slate-700">Supabase</summary>
+      <span class="block mt-1 text-slate-500 max-w-md">PostgreSQL Backend บันทึกผลลัพธ์ผ่าน <code class="text-blue-600">supabase.from('phase_mappings').insert()</code></span></details>
+  </div>
+
+  <!-- ============ DASHBOARD (ON TOP) ============ -->
+  <section class="glass card rounded-2xl border border-blue-100 overflow-hidden">
+    <div class="p-5 border-b border-blue-100 flex flex-wrap items-center gap-3 bg-gradient-to-r from-blue-50/80 to-emerald-50/50">
+      <h2 class="font-display font-600 text-slate-800 flex items-center gap-2">
+        <span class="h-6 w-6 rounded-lg bg-blue-500 text-white grid place-items-center text-xs">1</span>
+        Dashboard ผลลัพธ์
+      </h2>
+      <span id="rowCount" class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200 pill">0 รายการ</span>
+
+      <div class="ml-auto flex flex-wrap items-center gap-2">
+        <div class="relative">
+          <svg viewBox="0 0 24 24" class="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+          <input id="searchBox" oninput="render()" placeholder="ค้นหา real-time…"
+                 class="pl-8 pr-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-sm w-44 shadow-sm" />
+        </div>
+        <select id="filterSchedule" onchange="render()" class="py-2 px-2 rounded-lg bg-white border border-blue-200 text-sm outline-none focus:border-blue-500 shadow-sm"><option value="">ทุก Schedule</option></select>
+        <select id="filterSection" onchange="render()" class="py-2 px-2 rounded-lg bg-white border border-blue-200 text-sm outline-none focus:border-blue-500 shadow-sm"><option value="">ทุก Section</option></select>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-blue-50/70 text-slate-500 text-xs uppercase tracking-wide">
+          <tr>
+            <th class="text-left px-4 py-3 font-600">Item No.</th>
+            <th class="text-left px-3 py-3 font-600">Schedule</th>
+            <th class="text-left px-3 py-3 font-600">Section</th>
+            <th class="text-center px-3 py-3 font-600">XX</th>
+            <th class="text-center px-3 py-3 font-600">Running</th>
+            <th class="text-left px-3 py-3 font-600">Full Phase No.</th>
+            <th class="text-left px-4 py-3 font-600">Description</th>
+            <th class="px-3 py-3"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div id="emptyState" class="px-6 py-16 text-center text-slate-400">
+        <svg viewBox="0 0 24 24" class="h-10 w-10 mx-auto mb-3 text-blue-200" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        ยังไม่มีข้อมูล — อัปโหลดไฟล์ หรือเพิ่มรายการด้วยตนเอง (ด้านล่าง)
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-blue-100 flex flex-wrap items-center gap-2 bg-slate-50/50">
+      <button onclick="saveToDatabase()" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-600 text-sm shadow-sm shadow-blue-300/50 transition">
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        Save to Database
+      </button>
+      <button onclick="exportExcel()" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white font-600 text-sm shadow-sm shadow-emerald-200 transition">
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export to Excel
+      </button>
+      <button onclick="clearAll()" class="ml-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white hover:bg-rose-50 hover:text-rose-500 text-slate-500 border border-slate-200 text-sm transition">
+        ล้างตาราง
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ GRID: ingestion + manual form ============ -->
+  <div class="grid lg:grid-cols-3 gap-6">
+
+    <!-- File Ingestion -->
+    <section class="lg:col-span-2 glass card rounded-2xl border border-blue-100 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-display font-600 text-slate-800 flex items-center gap-2">
+          <span class="h-6 w-6 rounded-lg bg-blue-500 text-white grid place-items-center text-xs">2</span>
+          นำเข้าข้อมูล (File Ingestion)
+        </h2>
+        <span class="text-xs text-slate-400">PDF · XLSX · CSV</span>
+      </div>
+
+      <div id="dropzone"
+           class="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/40 px-6 py-10 text-center transition cursor-pointer hover:border-blue-400"
+           onclick="document.getElementById('fileInput').click()">
+        <svg viewBox="0 0 24 24" class="h-10 w-10 mx-auto text-blue-400" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4m0 0 4 4m-4-4-4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke-linecap="round"/></svg>
+        <p class="mt-3 text-slate-600">ลากไฟล์มาวาง หรือ <span class="text-blue-600 font-600">เลือกไฟล์</span></p>
+        <p class="text-xs text-slate-400 mt-1">ระบบจะแกะคอลัมน์ <span class="font-mono">Item No.</span> และ <span class="font-mono">Description</span> เข้าสู่ Mapping Engine ทันที</p>
+        <input id="fileInput" type="file" class="hidden" multiple accept=".pdf,.xlsx,.xls,.csv" />
+      </div>
+
+      <!-- progress -->
+      <div id="progressWrap" class="hidden mt-4">
+        <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+          <span id="progressLabel" class="flex items-center gap-2"><svg viewBox="0 0 24 24" class="h-4 w-4 spin text-blue-500" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.2-8.5" stroke-linecap="round"/></svg> กำลังประมวลผล…</span>
+          <span id="progressPct" class="font-mono">0%</span>
+        </div>
+        <div class="h-2 rounded-full bg-blue-100 overflow-hidden">
+          <div id="progressBar" class="h-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all" style="width:0%"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Manual entry -->
+    <section class="glass card rounded-2xl border border-blue-100 p-5">
+      <h2 class="font-display font-600 text-slate-800 flex items-center gap-2 mb-3">
+        <span class="h-6 w-6 rounded-lg bg-orange-400 text-white grid place-items-center text-xs">3</span>
+        เพิ่มรายการ (Manual)
+      </h2>
+      <label class="block text-xs text-slate-500 mb-1">Item No.</label>
+      <input id="mItemNo" oninput="livePreview()" placeholder="เช่น 1C1-5"
+             class="w-full mb-3 px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none font-mono text-sm shadow-sm" />
+      <label class="block text-xs text-slate-500 mb-1">Description</label>
+      <textarea id="mDesc" oninput="livePreview()" rows="3" placeholder="เช่น Transformer Foundation Pile Type"
+             class="w-full mb-3 px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-sm shadow-sm"></textarea>
+      <div class="mb-3 text-xs text-slate-500">Phase No. (auto):
+        <div id="mPreview" class="mt-1 font-mono text-emerald-600 font-700 text-base">—</div>
+      </div>
+      <button onclick="addManual()" class="w-full px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-600 text-sm shadow-sm shadow-blue-300/50 transition">
+        + เพิ่มเข้าตาราง
+      </button>
+    </section>
+  </div>
+
+  <!-- ============ AUTO SECTION-CODE ENGINE ============ -->
+  <section class="glass card rounded-2xl border border-blue-100">
+    <details open>
+      <summary class="p-5 flex items-center gap-2 font-display font-600 text-slate-800">
+        <span class="h-6 w-6 rounded-lg bg-emerald-500 text-white grid place-items-center text-xs">4</span>
+        Auto Section-Code Engine <span class="text-xs text-slate-400 font-sans font-400">(วิเคราะห์ Description แล้วสร้างรหัสเอง · ไม่มี dictionary ตายตัว)</span>
+        <svg viewBox="0 0 24 24" class="h-4 w-4 ml-auto text-slate-400" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="px-5 pb-5 space-y-4">
+        <p class="text-sm text-slate-500 leading-relaxed">
+          ระบบ <b class="text-slate-700">อ่านข้อความใน Description</b> → ตัดวงเล็บ/ตัวเลข/หน่วย และคำที่ไม่สื่อความหมาย (stopwords)
+          → เลือก <b class="text-slate-700">คำหลัก</b> (คำที่สื่อประเภทงานมากที่สุด) → ย่อเป็นรหัสตามจำนวนตัวอักษรที่กำหนด
+          และเติม <span class="font-mono text-orange-500">X</span> ต่อท้ายหากเป็นงาน “รื้อ/ของเดิม (existing/removed)”
+        </p>
+        <div class="grid sm:grid-cols-[auto_1fr] gap-4 items-start">
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">ความยาวรหัส</label>
+            <input id="codeLen" type="number" min="2" max="6" value="3" onchange="setCodeLen(this.value)"
+              class="w-24 px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-sm font-mono">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">Stopwords (คำที่ตัดทิ้ง · คั่นด้วย ,)</label>
+            <textarea id="stopwords" rows="3" onchange="setStopwords(this.value)"
+              class="w-full px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-xs font-mono"></textarea>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500 mb-2">รหัสที่ระบบสร้างจากข้อมูลปัจจุบัน (รหัส ↔ คำหลัก/ตัวอย่าง):</div>
+          <div id="codePreview" class="flex flex-wrap gap-2 text-xs text-slate-400">— ยังไม่มีข้อมูล —</div>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEVELOPER CREDIT ============ -->
+  <footer class="pt-2 pb-6 text-center">
+    <div class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full glass card border border-blue-100 text-sm">
+      <span class="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 to-emerald-400"></span>
+      <span class="text-slate-600">พัฒนาโดย</span>
+      <span class="font-display font-700 text-slate-800">Mr. Siradanai Sirisunthorn</span>
+    </div>
+    <p class="mt-3 text-xs text-slate-400">Phase Mapping System · HTML5 + Tailwind + Vanilla JS · Supabase (PostgreSQL) · GitHub Pages</p>
+  </footer>
+</main>
+
+<!-- ============ SETTINGS MODAL ============ -->
+<div id="settingsModal" class="hidden fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-sm grid place-items-center p-4">
+  <div class="glass card w-full max-w-md rounded-2xl border border-blue-100 p-6 fade-in">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-display font-600 text-slate-800">เชื่อมต่อ Supabase</h3>
+      <button onclick="closeSettings()" class="text-slate-400 hover:text-slate-700">✕</button>
+    </div>
+    <label class="block text-xs text-slate-500 mb-1">Project URL</label>
+    <input id="sbUrl" placeholder="https://xxxx.supabase.co" class="w-full mb-3 px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-sm font-mono" />
+    <label class="block text-xs text-slate-500 mb-1">anon public key</label>
+    <input id="sbKey" placeholder="eyJhbGciOi…" class="w-full mb-4 px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-sm font-mono" />
+    <div class="flex gap-2">
+      <button onclick="connectSupabase()" class="flex-1 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-600 text-sm">เชื่อมต่อ</button>
+      <button onclick="closeSettings()" class="px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-600 text-sm">ปิด</button>
+    </div>
+    <p class="text-xs text-slate-400 mt-3">รัน <code class="text-blue-600">supabase_schema.sql</code> ใน SQL Editor ก่อน · คีย์ถูกเก็บไว้ในเบราว์เซอร์ของคุณเท่านั้น</p>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast" class="hidden fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl text-sm font-500 shadow-2xl fade-in"></div>
+
+<script>
+/* ============================================================
+   STATE
+============================================================ */
+let RECORDS = [];                 // {item_no, description, schedule_code, section_code, xx_code, running_no, full_phase_no, source_file}
+let sb = null;                    // supabase client
+
+/* ---- safe localStorage (works on GitHub Pages, degrades in sandbox) ---- */
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+};
+
+/* ============================================================
+   AUTO SECTION-CODE ENGINE (dictionary-free)
+   อ่าน Description → หา "คำหลัก" → สร้างรหัสย่ออัตโนมัติ
+   ไม่มีการกำหนดรหัสตายตัวไว้ล่วงหน้า
+============================================================ */
+let CODE_LEN = 3;   // ความยาวรหัสที่ต้องการ (ปรับได้ในหน้าตั้งค่า)
+
+// คำที่ไม่สื่อความหมาย — ตัดทิ้งก่อนวิเคราะห์ (แก้ไขได้ในหน้าตั้งค่า ไม่ใช่ตารางรหัส)
+let STOPWORDS = new Set(`a,an,the,of,for,to,and,or,with,in,on,at,by,is,are,be,as,if,from,
+included,include,includes,its,this,that,
+type,long,bored,pad,set,sets,unit,units,no,nos,each,
+existing,exist,removed,remove,removal,relocated,relocate,demolish,demolished,new,old,
+pile,dowel,bar,cut,off,shoe,require,required,requires,
+system,work,works,general,equipment,support,
+kv,kva,kvar,mm,cm,sqm,sq,ton,height,width,dia,diameter`
+  .split(',').map(s=>s.trim()).filter(Boolean));
+
+// รูปแบบท้ายคำที่บ่งบอก "ประเภทงาน/โครงสร้าง" → ให้คะแนนพิเศษ (เป็นรูปแบบภาษา ไม่ใช่ตารางรหัส)
+const WORK_HINTS = ['ation','ment','wall','office','trench','slab','pole','fence','gate',
+  'house','test','design','drain','road','yard','duct','tank','separator','beam','column','curb','pit','way'];
+
+/* ============================================================
+   MAPPING ENGINE
+============================================================ */
+
+// [Schedule Code] — derive from Item No. prefix.  1C1-5 → 1C , 1AB2-3 → 1AB
+function deriveSchedule(itemNo){
+  if(!itemNo) return 'NA';
+  const s = String(itemNo).trim();
+  let m = s.match(/^(\d+[A-Za-z]+)\d/);          // leading digits + letters + a group digit
+  if(m) return m[1].toUpperCase();
+  m = s.match(/^([A-Za-z0-9]+?)[-\s.]/);          // fallback: token before first separator
+  if(m) return m[1].toUpperCase();
+  return s.toUpperCase();
+}
+
+// ---------- helpers (text → keyword → code) ----------
+function _clean(desc){
+  return String(desc||'').toLowerCase()
+    .replace(/\([^)]*\)/g,' ')            // ตัดข้อความในวงเล็บ (รหัสอุปกรณ์ ฯลฯ)
+    .replace(/[0-9]+(?:\.[0-9]+)?/g,' ')  // ตัดตัวเลข
+    .replace(/[^a-z\s]/g,' ')             // เก็บเฉพาะตัวอักษร
+    .replace(/\s+/g,' ').trim();
+}
+function _tokens(desc){
+  return _clean(desc).split(' ').filter(w => w.length>2 && !STOPWORDS.has(w));
+}
+function _score(w,i){
+  let s = w.length - i;                    // คำที่มาก่อน/ยาวกว่า = สำคัญกว่า
+  for(const h of WORK_HINTS){ if(w.endsWith(h)){ s += 15; break; } }
+  if(w.endsWith('ing') && w.length>5) s += 12;   // stripping, grading, retaining…
+  return s;
+}
+function _pickPrimary(desc){                // เลือก "คำหลัก" ที่สื่อประเภทงานมากที่สุด
+  const t=_tokens(desc); if(!t.length) return '';
+  let best=t[0], bs=-1e9;
+  t.forEach((w,i)=>{ const sc=_score(w,i); if(sc>bs){ bs=sc; best=w; } });
+  return best;
+}
+function _abbrev(word,len){                 // ย่อคำ → รหัส (เน้นพยัญชนะ)
+  word=word.toUpperCase().replace(/[^A-Z]/g,''); if(!word) return 'GEN';
+  let code=word[0];
+  for(let i=1;i<word.length && code.length<len;i++) if(!'AEIOU'.includes(word[i])) code+=word[i];
+  for(let i=1;i<word.length && code.length<len;i++) if(!code.includes(word[i])) code+=word[i];
+  while(code.length<len) code+='X';
+  return code.slice(0,len);
+}
+
+// [Section Code] — สร้างอัตโนมัติจากคำหลักใน Description (ไม่มี dictionary)
+function detectSection(desc){
+  const d=String(desc||'').toLowerCase();
+  if(!d.trim()) return 'GEN';
+  const primary=_pickPrimary(desc);
+  if(!primary) return 'GEN';
+  const removal=/(exist|removed|\bremove\b|relocat|demolish)/.test(d);   // งานรื้อ/ของเดิม
+  let code=_abbrev(primary, removal ? Math.max(2, CODE_LEN-1) : CODE_LEN);
+  if(removal) code += 'X';                  // variant สำหรับงานรื้อ/ของเดิม
+  return code;
+}
+
+// Build phase numbers for the whole list (running number per Schedule+Section, reset on change)
+function recomputeRunning(){
+  const counter = {};
+  RECORDS.forEach(r=>{
+    r.schedule_code = deriveSchedule(r.item_no);
+    r.section_code  = detectSection(r.description);
+    r.xx_code       = '00';
+    const key = r.schedule_code + '|' + r.section_code;
+    counter[key] = (counter[key] || 0) + 1;
+    r.running_no  = String(counter[key]).padStart(2,'0');
+    r.full_phase_no = `${r.schedule_code}-${r.section_code}-${r.xx_code}-${r.running_no}`;
+  });
+}
+
+/* ============================================================
+   FILE INGESTION
+============================================================ */
+const fileInput = document.getElementById('fileInput');
+const dropzone  = document.getElementById('dropzone');
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+['dragenter','dragover'].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.add('dropzone-active');}));
+['dragleave','drop'].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.remove('dropzone-active');}));
+dropzone.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+
+function setProgress(pct,label){
+  const w=document.getElementById('progressWrap');
+  w.classList.remove('hidden');
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = Math.round(pct) + '%';
+  if(label) document.getElementById('progressLabel').innerHTML =
+    '<svg viewBox="0 0 24 24" class="h-4 w-4 spin text-blue-500" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.2-8.5" stroke-linecap="round"/></svg> ' + label;
+  if(pct>=100) setTimeout(()=>w.classList.add('hidden'),900);
+}
+
+async function handleFiles(fileList){
+  const files = Array.from(fileList);
+  if(!files.length) return;
+  let added = 0;
+  for(let i=0;i<files.length;i++){
+    const f = files[i];
+    setProgress((i/files.length)*100, `กำลังอ่าน ${f.name}…`);
+    try{
+      let rows = [];
+      const ext = f.name.split('.').pop().toLowerCase();
+      if(ext==='pdf')          rows = await parsePDF(f);
+      else if(ext==='csv')     rows = await parseSheet(f, true);
+      else                     rows = await parseSheet(f, false);
+      rows.forEach(r=>{
+        if(!r.item_no && !r.description) return;
+        RECORDS.push({ item_no:r.item_no||'', description:r.description||'', source_file:f.name });
+        added++;
+      });
+    }catch(err){
+      console.error(err); toast('อ่านไฟล์ '+f.name+' ไม่สำเร็จ: '+err.message,'error');
+    }
+  }
+  setProgress(100,'เสร็จสิ้น');
+  recomputeRunning(); render();
+  if(added) toast(`นำเข้า ${added} รายการสำเร็จ`,'ok');
+  fileInput.value='';
+}
+
+// ---- Excel / CSV via SheetJS ----
+function parseSheet(file, isCsv){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      try{
+        const data = isCsv ? e.target.result : new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: isCsv ? 'string' : 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, { defval:'' });
+        resolve(json.map(mapRowKeys));
+      }catch(err){ reject(err); }
+    };
+    reader.onerror = reject;
+    isCsv ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
+  });
+}
+
+// flexible column-name matching
+function mapRowKeys(row){
+  let item='', desc='';
+  for(const k in row){
+    const key = k.toLowerCase().replace(/[^a-z]/g,'');
+    if(!item && (key==='itemno'||key==='item'||key==='itemnumber'||key==='no'||key==='code')) item = String(row[k]).trim();
+    if(!desc && (key.startsWith('desc')||key==='detail'||key==='name')) desc = String(row[k]).trim();
+  }
+  // fallback: first two columns
+  if(!item && !desc){ const vals=Object.values(row); item=String(vals[0]||'').trim(); desc=String(vals[1]||'').trim(); }
+  return { item_no:item, description:desc };
+}
+
+// ---- PDF via PDF.js (best-effort text-layer extraction) ----
+async function parsePDF(file){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const out = [];
+  for(let p=1;p<=pdf.numPages;p++){
+    setProgress(((p-1)/pdf.numPages)*100, `กำลังแกะ PDF หน้า ${p}/${pdf.numPages}…`);
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    // group text items into lines by their y-position
+    const lines = {};
+    tc.items.forEach(it=>{
+      const y = Math.round(it.transform[5]);
+      (lines[y] = lines[y] || []).push({x:it.transform[4], s:it.str});
+    });
+    Object.keys(lines).sort((a,b)=>b-a).forEach(y=>{
+      const text = lines[y].sort((a,b)=>a.x-b.x).map(o=>o.s).join(' ').replace(/\s+/g,' ').trim();
+      const row = parsePdfLine(text);
+      if(row) out.push(row);
+    });
+  }
+  return out;
+}
+
+// a row begins with an Item No. like 1C1-5 or 1C3-1.1.4 ; the rest is the description
+function parsePdfLine(text){
+  const m = text.match(/^([0-9]+[A-Za-z]+[0-9]*-[0-9.]+)\s+(.*)$/);
+  if(!m) return null;
+  let desc = m[2]
+    .replace(/[0-9]+[A-Za-z]+-[A-Za-z]+-[0-9]{2}-[0-9]{2,3}/g,'')   // strip any existing Phase No.
+    .replace(/PO\d+/gi,'').replace(/Glory Construction/gi,'')
+    .replace(/[\d,]+\.\d{2}/g,'').replace(/\s+/g,' ').trim();
+  if(!desc) return null;
+  return { item_no:m[1], description:desc };
+}
+
+/* ============================================================
+   MANUAL ENTRY
+============================================================ */
+function livePreview(){
+  const item = document.getElementById('mItemNo').value;
+  const desc = document.getElementById('mDesc').value;
+  if(!item && !desc){ document.getElementById('mPreview').textContent='—'; return; }
+  const sch=deriveSchedule(item), sec=detectSection(desc);
+  document.getElementById('mPreview').textContent = `${sch}-${sec}-00-NN`;
+}
+function addManual(){
+  const item = document.getElementById('mItemNo').value.trim();
+  const desc = document.getElementById('mDesc').value.trim();
+  if(!item && !desc){ toast('กรุณากรอก Item No. หรือ Description','error'); return; }
+  RECORDS.push({ item_no:item, description:desc, source_file:'manual' });
+  recomputeRunning(); render();
+  document.getElementById('mItemNo').value=''; document.getElementById('mDesc').value=''; livePreview();
+  toast('เพิ่มรายการแล้ว','ok');
+}
+
+/* ============================================================
+   RENDER  (table + filters + search)
+============================================================ */
+function uniqueSorted(arr){ return [...new Set(arr)].sort(); }
+
+function refreshFilterOptions(){
+  const schedSel=document.getElementById('filterSchedule'), secSel=document.getElementById('filterSection');
+  const curS=schedSel.value, curSec=secSel.value;
+  schedSel.innerHTML='<option value="">ทุก Schedule</option>'+uniqueSorted(RECORDS.map(r=>r.schedule_code)).map(v=>`<option ${v===curS?'selected':''}>${v}</option>`).join('');
+  secSel.innerHTML  ='<option value="">ทุก Section</option>'  +uniqueSorted(RECORDS.map(r=>r.section_code)).map(v=>`<option ${v===curSec?'selected':''}>${v}</option>`).join('');
+}
+
+// สีของป้าย Section สร้างจากตัวรหัสแบบ deterministic (รองรับรหัสใดก็ได้)
+const PALETTE = ['blue','emerald','orange','violet','cyan','rose','amber','teal','fuchsia','sky','lime','pink','indigo','green','purple'];
+function colorForCode(code){
+  let h=0; for(let i=0;i<code.length;i++) h=(h*31+code.charCodeAt(i))>>>0;
+  return PALETTE[h % PALETTE.length];
+}
+function secBadge(code){
+  const c = colorForCode(code);
+  return `<span class="px-2 py-0.5 rounded-md text-xs font-700 font-mono bg-${c}-100 text-${c}-700 border border-${c}-200">${code}</span>`;
+}
+
+function render(){
+  refreshFilterOptions();
+  const q   = document.getElementById('searchBox').value.toLowerCase();
+  const fS  = document.getElementById('filterSchedule').value;
+  const fSec= document.getElementById('filterSection').value;
+
+  const view = RECORDS.filter(r=>{
+    if(fS && r.schedule_code!==fS) return false;
+    if(fSec && r.section_code!==fSec) return false;
+    if(q){
+      const hay=(r.item_no+' '+r.description+' '+r.full_phase_no).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('rowCount').textContent = `${view.length} / ${RECORDS.length} รายการ`;
+  const body=document.getElementById('tableBody');
+  document.getElementById('emptyState').style.display = RECORDS.length? 'none':'block';
+
+  body.innerHTML = view.map(r=>{
+    const idx = RECORDS.indexOf(r);
+    return `<tr class="border-t border-blue-50 hover:bg-blue-50/50">
+      <td class="px-4 py-2.5 font-mono text-slate-700">${esc(r.item_no)||'<span class="text-slate-300">—</span>'}</td>
+      <td class="px-3 py-2.5 font-mono text-slate-500">${esc(r.schedule_code)}</td>
+      <td class="px-3 py-2.5">${secBadge(r.section_code)}</td>
+      <td class="px-3 py-2.5 text-center font-mono text-slate-400">${r.xx_code}</td>
+      <td class="px-3 py-2.5 text-center font-mono text-slate-600">${r.running_no}</td>
+      <td class="px-3 py-2.5"><span class="font-mono font-700 text-emerald-600">${r.full_phase_no}</span></td>
+      <td class="px-4 py-2.5 text-slate-500 max-w-md"><div class="truncate" title="${esc(r.description)}">${esc(r.description)||'<span class="text-slate-300">—</span>'}</div></td>
+      <td class="px-3 py-2.5 text-right"><button onclick="removeRow(${idx})" class="text-slate-300 hover:text-rose-500 transition" title="ลบ">✕</button></td>
+    </tr>`;
+  }).join('');
+  renderCodePreview();
+}
+function removeRow(i){ RECORDS.splice(i,1); recomputeRunning(); render(); }
+function clearAll(){ if(RECORDS.length && confirm('ล้างข้อมูลทั้งหมดในตาราง?')){ RECORDS=[]; render(); } }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ============================================================
+   EXPORT TO EXCEL (current filtered view)
+============================================================ */
+function exportExcel(){
+  const q=document.getElementById('searchBox').value.toLowerCase();
+  const fS=document.getElementById('filterSchedule').value, fSec=document.getElementById('filterSection').value;
+  const view=RECORDS.filter(r=>{
+    if(fS&&r.schedule_code!==fS)return false;
+    if(fSec&&r.section_code!==fSec)return false;
+    if(q){const hay=(r.item_no+' '+r.description+' '+r.full_phase_no).toLowerCase();if(!hay.includes(q))return false;}
+    return true;
+  });
+  if(!view.length){ toast('ไม่มีข้อมูลให้ส่งออก','error'); return; }
+  const aoa=view.map(r=>({
+    'Item No.':r.item_no,'Schedule Code':r.schedule_code,'Section Code':r.section_code,
+    'XX':r.xx_code,'Running No.':r.running_no,'Full Phase No.':r.full_phase_no,
+    'Description':r.description,'Source File':r.source_file||''
+  }));
+  const ws=XLSX.utils.json_to_sheet(aoa);
+  ws['!cols']=[{wch:14},{wch:14},{wch:14},{wch:6},{wch:10},{wch:20},{wch:60},{wch:22}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'PhaseMappings');
+  XLSX.writeFile(wb, `phase_mappings_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast(`ส่งออก ${view.length} รายการเป็น Excel แล้ว`,'ok');
+}
+
+/* ============================================================
+   SUPABASE
+============================================================ */
+function openSettings(){ document.getElementById('settingsModal').classList.remove('hidden');
+  document.getElementById('sbUrl').value = store.get('sb_url')||'';
+  document.getElementById('sbKey').value = store.get('sb_key')||''; }
+function closeSettings(){ document.getElementById('settingsModal').classList.add('hidden'); }
+
+function connectSupabase(){
+  const url=document.getElementById('sbUrl').value.trim();
+  const key=document.getElementById('sbKey').value.trim();
+  if(!url||!key){ toast('กรอก URL และ anon key','error'); return; }
+  try{
+    sb = supabase.createClient(url,key);
+    store.set('sb_url',url); store.set('sb_key',key);
+    setDbStatus(true); closeSettings(); toast('เชื่อมต่อ Supabase สำเร็จ','ok');
+  }catch(err){ toast('เชื่อมต่อไม่สำเร็จ: '+err.message,'error'); }
+}
+function setDbStatus(ok){
+  const el=document.getElementById('dbStatus');
+  el.innerHTML = ok
+    ? '<span class="h-2 w-2 rounded-full bg-emerald-500"></span> Supabase: เชื่อมต่อแล้ว'
+    : '<span class="h-2 w-2 rounded-full bg-slate-400"></span> Supabase: ไม่ได้เชื่อมต่อ';
+  el.className = 'hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border '+
+    (ok?'bg-emerald-50 text-emerald-600 border-emerald-200':'bg-slate-100 text-slate-500 border-slate-200');
+}
+
+async function saveToDatabase(){
+  if(!sb){ openSettings(); toast('กรุณาเชื่อมต่อ Supabase ก่อน','error'); return; }
+  if(!RECORDS.length){ toast('ไม่มีข้อมูลให้บันทึก','error'); return; }
+  const payload = RECORDS.map(r=>({
+    item_no:r.item_no, description:r.description, schedule_code:r.schedule_code,
+    section_code:r.section_code, xx_code:r.xx_code, running_no:r.running_no,
+    full_phase_no:r.full_phase_no, source_file:r.source_file||null
+  }));
+  toast('กำลังบันทึก…','info');
+  const { error } = await sb.from('phase_mappings').insert(payload);
+  if(error) toast('บันทึกไม่สำเร็จ: '+error.message,'error');
+  else toast(`บันทึก ${payload.length} รายการลง Supabase แล้ว`,'ok');
+}
+
+/* ============================================================
+   AUTO-ENGINE SETTINGS UI
+============================================================ */
+function setCodeLen(v){ CODE_LEN=Math.max(2,Math.min(6,parseInt(v)||3)); recomputeRunning(); render(); toast('อัปเดตความยาวรหัสแล้ว','info'); }
+function setStopwords(v){ STOPWORDS=new Set(v.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean)); recomputeRunning(); render(); toast('อัปเดต stopwords แล้ว','info'); }
+function initEngineUI(){
+  document.getElementById('codeLen').value=CODE_LEN;
+  document.getElementById('stopwords').value=[...STOPWORDS].join(', ');
+}
+function renderCodePreview(){
+  const el=document.getElementById('codePreview'); if(!el) return;
+  const seen={};
+  RECORDS.forEach(r=>{ if(r.section_code && !seen[r.section_code]) seen[r.section_code]=r.description; });
+  const keys=Object.keys(seen).sort();
+  if(!keys.length){ el.innerHTML='— ยังไม่มีข้อมูล —'; return; }
+  el.innerHTML = keys.map(code=>{
+    const c=colorForCode(code);
+    return `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-${c}-50 border border-${c}-200">
+      <span class="font-mono font-700 text-${c}-700">${code}</span>
+      <span class="text-slate-500 truncate max-w-[200px]" title="${esc(seen[code])}">${esc(seen[code])}</span></span>`;
+  }).join('');
+}
+
+/* ============================================================
+   TOAST
+============================================================ */
+let toastTimer;
+function toast(msg,type='info'){
+  const el=document.getElementById('toast');
+  const map={ok:'bg-emerald-500 text-white',error:'bg-rose-500 text-white',info:'bg-blue-600 text-white'};
+  el.className='fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl text-sm font-500 shadow-2xl fade-in '+(map[type]||map.info);
+  el.textContent=msg; el.classList.remove('hidden');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.add('hidden'),3200);
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+(function init(){
+  initEngineUI(); render();
+  const u=store.get('sb_url'), k=store.get('sb_key');
+  if(u&&k){ try{ sb=supabase.createClient(u,k); setDbStatus(true);}catch(e){} }
+})();
+</script>
+</body>
+</html>
