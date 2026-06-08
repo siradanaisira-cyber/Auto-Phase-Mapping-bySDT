@@ -119,9 +119,9 @@
       </div>
     </div>
 
-    <div class="overflow-x-auto">
+    <div class="overflow-auto max-h-[1270px]">
       <table class="w-full text-sm">
-        <thead class="bg-blue-50/70 text-slate-500 text-xs uppercase tracking-wide">
+        <thead class="bg-blue-100 text-slate-500 text-xs uppercase tracking-wide sticky top-0 z-10">
           <tr>
             <th class="text-left px-4 py-3 font-600">Item No.</th>
             <th class="text-left px-3 py-3 font-600">Schedule</th>
@@ -166,7 +166,10 @@
           <span class="h-6 w-6 rounded-lg bg-blue-500 text-white grid place-items-center text-xs">2</span>
           นำเข้าข้อมูล (File Ingestion)
         </h2>
-        <span class="text-xs text-slate-400">PDF · XLSX · CSV</span>
+        <button onclick="exportTemplate()" class="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 shadow-sm transition">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          ดาวน์โหลด Template
+        </button>
       </div>
 
       <div id="dropzone"
@@ -213,7 +216,7 @@
 
   <!-- ============ AUTO SECTION-CODE ENGINE ============ -->
   <section class="glass card rounded-2xl border border-blue-100">
-    <details open>
+    <details>
       <summary class="p-5 flex items-center gap-2 font-display font-600 text-slate-800">
         <span class="h-6 w-6 rounded-lg bg-emerald-500 text-white grid place-items-center text-xs">4</span>
         Auto Section-Code Engine <span class="text-xs text-slate-400 font-sans font-400">(วิเคราะห์ Description แล้วสร้างรหัสเอง · ไม่มี dictionary ตายตัว)</span>
@@ -582,6 +585,37 @@ function render(){
 function removeRow(i){ RECORDS.splice(i,1); recomputeRunning(); render(); }
 function clearAll(){ if(RECORDS.length && confirm('ล้างข้อมูลทั้งหมดในตาราง?')){ RECORDS=[]; render(); } }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ============================================================
+   EXPORT BLANK TEMPLATE (Item No. + Description) สำหรับกรอกข้อมูล
+============================================================ */
+function exportTemplate(){
+  // Sheet 1 "Template" — หัวคอลัมน์ + แถวว่างให้กรอก (ระบบจะอ่านชีตแรกตอนอัปโหลด)
+  const tpl = [['Item No.','Description']];
+  for(let i=0;i<30;i++) tpl.push(['','']);
+  const wsT = XLSX.utils.aoa_to_sheet(tpl);
+  wsT['!cols'] = [{wch:18},{wch:75}];
+
+  // Sheet 2 "ตัวอย่าง" — โชว์รูปแบบและผลลัพธ์ที่ระบบจะสร้าง (ไม่ถูกนำเข้า)
+  const ex = [
+    ['Item No.','Description','→ Phase No. (สร้างอัตโนมัติ)'],
+    ['1C1-1','Transformer Foundation Pile Type','1C-FND-00-01'],
+    ['1C1-2','115 kV Take off Structure Foundation','1C-FND-00-02'],
+    ['1C4-1','Embankment for site preparation','1C-EMB-00-01'],
+    ['1C3-2','115 kV GIS Building','1C-BLD-00-01'],
+    ['1C6-4','Drainage System (Existing to be removed)','1C-DRX-00-01'],
+    ['','',''],
+    ['วิธีใช้:','กรอก Item No. และ Description ในชีต "Template" แล้วอัปโหลดไฟล์กลับเข้าระบบ','ระบบจะสร้าง Phase No. ให้อัตโนมัติ'],
+  ];
+  const wsE = XLSX.utils.aoa_to_sheet(ex);
+  wsE['!cols'] = [{wch:18},{wch:60},{wch:28}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsT, 'Template');
+  XLSX.utils.book_append_sheet(wb, wsE, 'ตัวอย่าง');
+  XLSX.writeFile(wb, 'phase_mapping_template.xlsx');
+  toast('ดาวน์โหลด Template แล้ว — กรอก Item No./Description แล้วอัปโหลดกลับ','ok');
+}
 
 /* ============================================================
    EXPORT TO EXCEL (current filtered view)
