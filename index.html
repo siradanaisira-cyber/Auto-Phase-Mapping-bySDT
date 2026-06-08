@@ -278,6 +278,30 @@
   </div>
 </div>
 
+<!-- ============ SHEET PICKER MODAL ============ -->
+<div id="sheetModal" class="hidden fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-sm grid place-items-center p-4">
+  <div class="glass card w-full max-w-lg rounded-2xl border border-blue-100 p-6 fade-in">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="font-display font-600 text-slate-800">เลือกชีตที่จะนำเข้า</h3>
+      <button onclick="closeSheetPicker()" class="text-slate-400 hover:text-slate-700">✕</button>
+    </div>
+    <p class="text-xs text-slate-400 mb-3">ไฟล์: <span id="sheetFileName" class="font-mono"></span> · เลือกได้หลายชีต · ระบบจะอ่านเฉพาะคอลัมน์ Item No. และ Description</p>
+    <input id="sheetFilter" oninput="filterSheets()" placeholder="ค้นหาชื่อชีต…" class="w-full mb-2 px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-sm">
+    <div class="flex flex-wrap gap-2 mb-2 text-xs">
+      <button onclick="selectDataSheets()" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100">เลือกชีตข้อมูล (ไม่ขึ้นต้น _)</button>
+      <button onclick="selectFilteredSheets(true)" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-50">เลือกทั้งหมด</button>
+      <button onclick="selectFilteredSheets(false)" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-50">ล้าง</button>
+    </div>
+    <div id="sheetList" class="max-h-64 overflow-auto rounded-lg border border-blue-100 p-1 mb-3"></div>
+    <label class="block text-xs text-slate-500 mb-1">หรือพิมพ์ชื่อชีตเอง (คั่นด้วย ,)</label>
+    <input id="sheetTyped" placeholder="เช่น C1, C2, AB7" class="w-full mb-4 px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-sm font-mono">
+    <div class="flex gap-2">
+      <button onclick="importPickedSheets()" class="flex-1 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-600 text-sm">นำเข้า</button>
+      <button onclick="closeSheetPicker()" class="px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-600 text-sm">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ TOAST ============ -->
 <div id="toast" class="hidden fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl text-sm font-500 shadow-2xl fade-in"></div>
 
@@ -408,6 +432,8 @@ function setProgress(pct,label){
   if(pct>=100) setTimeout(()=>w.classList.add('hidden'),900);
 }
 
+let PENDING_WB = null, PENDING_NAME = '';   // เก็บ workbook ที่รอผู้ใช้เลือกชีต
+
 async function handleFiles(fileList){
   const files = Array.from(fileList);
   if(!files.length) return;
@@ -416,16 +442,21 @@ async function handleFiles(fileList){
     const f = files[i];
     setProgress((i/files.length)*100, `กำลังอ่าน ${f.name}…`);
     try{
-      let rows = [];
       const ext = f.name.split('.').pop().toLowerCase();
-      if(ext==='pdf')          rows = await parsePDF(f);
-      else if(ext==='csv')     rows = await parseSheet(f, true);
-      else                     rows = await parseSheet(f, false);
-      rows.forEach(r=>{
-        if(!r.item_no && !r.description) return;
-        RECORDS.push({ item_no:r.item_no||'', description:r.description||'', source_file:f.name });
-        added++;
-      });
+      if(ext==='pdf'){
+        added += pushRows(await parsePDF(f), f.name);
+      } else if(ext==='csv'){
+        const wb = XLSX.read(await f.text(), { type:'string' });
+        added += pushRows(extractFromSheet(wb.Sheets[wb.SheetNames[0]]), f.name);
+      } else {                                  // .xlsx / .xls
+        const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), { type:'array' });
+        if(wb.SheetNames.length > 1){           // หลายชีต → ให้ผู้ใช้เลือก/พิมพ์ชื่อชีต
+          PENDING_WB = wb; PENDING_NAME = f.name;
+          openSheetPicker(wb.SheetNames);
+        } else {
+          added += pushRows(extractFromSheet(wb.Sheets[wb.SheetNames[0]]), f.name+' / '+wb.SheetNames[0]);
+        }
+      }
     }catch(err){
       console.error(err); toast('อ่านไฟล์ '+f.name+' ไม่สำเร็จ: '+err.message,'error');
     }
@@ -436,35 +467,96 @@ async function handleFiles(fileList){
   fileInput.value='';
 }
 
-// ---- Excel / CSV via SheetJS ----
-function parseSheet(file, isCsv){
-  return new Promise((resolve,reject)=>{
-    const reader = new FileReader();
-    reader.onload = e => {
-      try{
-        const data = isCsv ? e.target.result : new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, { type: isCsv ? 'string' : 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(ws, { defval:'' });
-        resolve(json.map(mapRowKeys));
-      }catch(err){ reject(err); }
-    };
-    reader.onerror = reject;
-    isCsv ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
+// เพิ่มแถวเข้าสู่ RECORDS — คืนจำนวนที่เพิ่ม
+function pushRows(rows, src){
+  let n=0;
+  (rows||[]).forEach(r=>{
+    if(!r.item_no && !r.description) return;
+    RECORDS.push({ item_no:r.item_no||'', description:r.description||'', source_file:src });
+    n++;
   });
+  return n;
 }
 
-// flexible column-name matching
-function mapRowKeys(row){
-  let item='', desc='';
-  for(const k in row){
-    const key = k.toLowerCase().replace(/[^a-z]/g,'');
-    if(!item && (key==='itemno'||key==='item'||key==='itemnumber'||key==='no'||key==='code')) item = String(row[k]).trim();
-    if(!desc && (key.startsWith('desc')||key==='detail'||key==='name')) desc = String(row[k]).trim();
+/* ============================================================
+   อ่านเฉพาะคอลัมน์ Item No. และ Description (แกน Y)
+   - หาแถวหัวตารางที่มีทั้ง "Item No." และ "Description"
+   - อ่านลงตามคอลัมน์นั้น ๆ เท่านั้น (คอลัมน์อื่นไม่สนใจ)
+============================================================ */
+function extractFromSheet(ws){
+  if(!ws) return [];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:'' });
+  let hr=-1, itemCol=-1, descCol=-1;
+  const norm = v => String(v==null?'':v).toLowerCase().replace(/\s+/g,' ').trim();
+
+  // 1) หาแถวหัวตาราง (สแกนสูงสุด 40 แถวแรก)
+  for(let r=0; r<Math.min(aoa.length,40); r++){
+    const row=aoa[r]||[]; let ic=-1, dc=-1;
+    row.forEach((cell,ci)=>{
+      const t=norm(cell);
+      if(ic<0 && (t==='item no.'||t==='item no'||(t.includes('item') && t.includes('no') && t.length<=14))) ic=ci;
+      if(dc<0 && t.indexOf('description')===0) dc=ci;
+    });
+    if(ic>=0 && dc>=0){ hr=r; itemCol=ic; descCol=dc; break; }
   }
-  // fallback: first two columns
-  if(!item && !desc){ const vals=Object.values(row); item=String(vals[0]||'').trim(); desc=String(vals[1]||'').trim(); }
-  return { item_no:item, description:desc };
+  if(hr<0) return [];   // ไม่พบหัวตาราง → ข้ามชีตนี้
+
+  // 2) อ่านลงตามแกน Y เฉพาะ 2 คอลัมน์นั้น
+  const out=[];
+  for(let r=hr+1; r<aoa.length; r++){
+    const row=aoa[r]||[];
+    const item=String(row[itemCol]??'').trim();
+    const desc=String(row[descCol]??'').replace(/\s+/g,' ').trim();
+    if(!item) continue;                              // ต้องมี Item No.
+    if(/^(total|grand\s*total|sub\s*total)/i.test(item)) continue;   // ข้ามแถวสรุป
+    if(/price\s+for\s+schedule/i.test(item)) continue;
+    if(!/\d/.test(item)) continue;                   // Item No. ต้องมีตัวเลข
+    if(!/[A-Za-z]/.test(item) && !item.includes('-')) continue;  // ข้ามค่าว่าง/ศูนย์/ตัวเลขล้วน
+    out.push({ item_no:item, description:desc });
+  }
+  return out;
+}
+
+/* ============================================================
+   SHEET PICKER — เลือก/พิมพ์ชื่อชีตที่จะนำเข้า (รองรับหลายชีต)
+============================================================ */
+function openSheetPicker(names){
+  document.getElementById('sheetFileName').textContent = PENDING_NAME;
+  document.getElementById('sheetFilter').value='';
+  document.getElementById('sheetTyped').value='';
+  renderSheetList(names);
+  document.getElementById('sheetModal').classList.remove('hidden');
+}
+function renderSheetList(names){
+  const q=(document.getElementById('sheetFilter').value||'').toLowerCase();
+  const list=names.filter(n=>n.toLowerCase().includes(q));
+  document.getElementById('sheetList').innerHTML = list.map(n=>
+    `<label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-blue-50 cursor-pointer text-sm">
+       <input type="checkbox" class="sheetChk accent-blue-600" value="${esc(n)}">
+       <span class="font-mono text-slate-700">${esc(n)}</span></label>`
+  ).join('') || '<div class="text-slate-400 text-sm px-2 py-3">ไม่พบชีตที่ตรงกับคำค้น</div>';
+}
+function filterSheets(){ if(PENDING_WB) renderSheetList(PENDING_WB.SheetNames); }
+function selectFilteredSheets(on){ document.querySelectorAll('.sheetChk').forEach(c=>c.checked=on); }
+function selectDataSheets(){ document.querySelectorAll('.sheetChk').forEach(c=>{ c.checked = !c.value.startsWith('_'); }); }
+function closeSheetPicker(){ document.getElementById('sheetModal').classList.add('hidden'); PENDING_WB=null; PENDING_NAME=''; }
+function importPickedSheets(){
+  if(!PENDING_WB){ closeSheetPicker(); return; }
+  const picked=new Set();
+  document.querySelectorAll('.sheetChk:checked').forEach(c=>picked.add(c.value));
+  (document.getElementById('sheetTyped').value||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(name=>{
+    const hit=PENDING_WB.SheetNames.find(s=>s.toLowerCase()===name.toLowerCase());
+    if(hit) picked.add(hit); else toast('ไม่พบชีตชื่อ "'+name+'"','error');
+  });
+  if(!picked.size){ toast('ยังไม่ได้เลือกชีต','error'); return; }
+  let added=0, used=0;
+  picked.forEach(name=>{
+    const n=pushRows(extractFromSheet(PENDING_WB.Sheets[name]), PENDING_NAME+' / '+name);
+    added+=n; if(n) used++;
+  });
+  closeSheetPicker();
+  recomputeRunning(); render();
+  toast(`นำเข้า ${added} รายการ จาก ${used} ชีต`, added?'ok':'info');
 }
 
 // ---- PDF via PDF.js (best-effort text-layer extraction) ----
