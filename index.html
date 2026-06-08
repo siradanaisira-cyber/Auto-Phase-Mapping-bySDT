@@ -33,10 +33,10 @@
 </script>
 <style>
   body { background:
-      radial-gradient(1100px 560px at 88% -8%, rgba(187,247,208,.55), transparent 60%),   /* soft green */
-      radial-gradient(900px 520px at -8% 8%,  rgba(191,219,254,.55), transparent 58%),     /* soft blue  */
-      radial-gradient(900px 520px at 50% 115%, rgba(254,215,170,.45), transparent 55%),    /* soft orange*/
-      #f4f9ff;
+      radial-gradient(1000px 520px at 88% -10%, rgba(191,219,254,.65), transparent 60%),   /* light blue */
+      radial-gradient(900px 520px at -8% 12%,  rgba(186,230,253,.60), transparent 58%),     /* light sky  */
+      radial-gradient(900px 520px at 50% 118%, rgba(199,210,254,.45), transparent 55%),     /* light indigo */
+      #e8f1ff;
     background-attachment: fixed;
   }
   .glass { background: rgba(255,255,255,.78); backdrop-filter: blur(10px); }
@@ -119,7 +119,7 @@
       </div>
     </div>
 
-    <div class="overflow-auto max-h-[1270px]">
+    <div class="overflow-auto max-h-[860px]">
       <table class="w-full text-sm">
         <thead class="bg-blue-100 text-slate-500 text-xs uppercase tracking-wide sticky top-0 z-10">
           <tr>
@@ -129,6 +129,7 @@
             <th class="text-center px-3 py-3 font-600">XX</th>
             <th class="text-center px-3 py-3 font-600">Running</th>
             <th class="text-left px-3 py-3 font-600">Full Phase No.</th>
+            <th class="text-left px-4 py-3 font-600">Full Description <span class="text-slate-400 normal-case">(≤30)</span></th>
             <th class="text-left px-4 py-3 font-600">Description</th>
             <th class="px-3 py-3"></th>
           </tr>
@@ -208,6 +209,9 @@
       <div class="mb-3 text-xs text-slate-500">Phase No. (auto):
         <div id="mPreview" class="mt-1 font-mono text-emerald-600 font-700 text-base">—</div>
       </div>
+      <div class="mb-3 text-xs text-slate-500">Full Description (≤30):
+        <div id="mFullDesc" class="mt-1 text-slate-700 font-600 text-sm">—</div>
+      </div>
       <button onclick="addManual()" class="w-full px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-600 text-sm shadow-sm shadow-blue-300/50 transition">
         + เพิ่มเข้าตาราง
       </button>
@@ -219,29 +223,49 @@
     <details>
       <summary class="p-5 flex items-center gap-2 font-display font-600 text-slate-800">
         <span class="h-6 w-6 rounded-lg bg-emerald-500 text-white grid place-items-center text-xs">4</span>
-        Auto Section-Code Engine <span class="text-xs text-slate-400 font-sans font-400">(วิเคราะห์ Description แล้วสร้างรหัสเอง · ไม่มี dictionary ตายตัว)</span>
+        Section-Code Engine <span class="text-xs text-slate-400 font-sans font-400">(Regex → Section Code · เรียนรู้จากไฟล์จริง · แก้ไขได้)</span>
         <svg viewBox="0 0 24 24" class="h-4 w-4 ml-auto text-slate-400" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
       </summary>
       <div class="px-5 pb-5 space-y-4">
         <p class="text-sm text-slate-500 leading-relaxed">
-          ระบบ <b class="text-slate-700">อ่านข้อความใน Description</b> → ตัดวงเล็บ/ตัวเลข/หน่วย และคำที่ไม่สื่อความหมาย (stopwords)
-          → เลือก <b class="text-slate-700">คำหลัก</b> (คำที่สื่อประเภทงานมากที่สุด) → ย่อเป็นรหัสตามจำนวนตัวอักษรที่กำหนด
-          และเติม <span class="font-mono text-orange-500">X</span> ต่อท้ายหากเป็นงาน “รื้อ/ของเดิม (existing/removed)”
+          ลำดับการทำงาน: <b class="text-slate-700">1) จับคู่ Regex จาก Description</b> → ถ้าไม่เข้ากฎใด
+          <b class="text-slate-700">2) สืบทอดรหัสจากหัวข้อแม่</b> ตามลำดับ Item No. (เช่น แอร์/ระบายอากาศ ใต้ตึก Control → CTR)
+          → ถ้ายังไม่ได้ <b class="text-slate-700">3) ย่อคำหลักอัตโนมัติ</b> · งาน “Existing to be removed” ของหมวดโยธาจะกลายเป็น <span class="font-mono text-orange-500">FEX/CEX/REX/DEX</span>
         </p>
-        <div class="grid sm:grid-cols-[auto_1fr] gap-4 items-start">
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">ความยาวรหัส</label>
-            <input id="codeLen" type="number" min="2" max="6" value="3" onchange="setCodeLen(this.value)"
-              class="w-24 px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-sm font-mono">
+
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-xs font-600 text-slate-600">กฎ Regex → Section Code (เรียงตามลำดับความสำคัญ)</div>
+            <button onclick="addRule()" class="text-xs px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100">+ เพิ่มกฎ</button>
           </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">Stopwords (คำที่ตัดทิ้ง · คั่นด้วย ,)</label>
-            <textarea id="stopwords" rows="3" onchange="setStopwords(this.value)"
-              class="w-full px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-xs font-mono"></textarea>
+          <div class="overflow-auto max-h-72 rounded-lg border border-blue-100">
+            <table class="w-full text-sm">
+              <thead class="bg-blue-50 text-slate-500 text-xs sticky top-0">
+                <tr><th class="text-left px-3 py-2 w-24">Code</th><th class="text-left px-3 py-2">Regex pattern (Description)</th><th class="w-10"></th></tr>
+              </thead>
+              <tbody id="rulesBody"></tbody>
+            </table>
           </div>
         </div>
+
+        <details class="text-sm">
+          <summary class="text-xs text-slate-500 cursor-pointer">ตั้งค่า Fallback (เมื่อไม่มีกฎใดเข้า) — ย่อคำหลักอัตโนมัติ</summary>
+          <div class="grid sm:grid-cols-[auto_1fr] gap-4 items-start mt-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">ความยาวรหัส</label>
+              <input id="codeLen" type="number" min="2" max="6" value="3" onchange="setCodeLen(this.value)"
+                class="w-24 px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-sm font-mono">
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Stopwords (คำที่ตัดทิ้ง · คั่นด้วย ,)</label>
+              <textarea id="stopwords" rows="3" onchange="setStopwords(this.value)"
+                class="w-full px-3 py-2 rounded-lg bg-white border border-blue-200 focus:border-blue-500 outline-none text-xs font-mono"></textarea>
+            </div>
+          </div>
+        </details>
+
         <div>
-          <div class="text-xs text-slate-500 mb-2">รหัสที่ระบบสร้างจากข้อมูลปัจจุบัน (รหัส ↔ คำหลัก/ตัวอย่าง):</div>
+          <div class="text-xs text-slate-500 mb-2">รหัสที่ระบบสร้างจากข้อมูลปัจจุบัน (รหัส ↔ ตัวอย่าง):</div>
           <div id="codePreview" class="flex flex-wrap gap-2 text-xs text-slate-400">— ยังไม่มีข้อมูล —</div>
         </div>
       </div>
@@ -319,13 +343,70 @@ const store = {
 };
 
 /* ============================================================
-   AUTO SECTION-CODE ENGINE (dictionary-free)
-   อ่าน Description → หา "คำหลัก" → สร้างรหัสย่ออัตโนมัติ
-   ไม่มีการกำหนดรหัสตายตัวไว้ล่วงหน้า
+   SECTION-CODE ENGINE  (เรียนรู้จากไฟล์ Phase_No_for_Learn)
+   ลำดับ: 1) จับคู่ Regex จาก Description  2) ถ้าไม่เข้า → สืบทอดจาก
+   หัวข้อแม่ตามลำดับ Item No.  3) ถ้ายังไม่ได้ → ย่อคำหลักอัตโนมัติ
+   จากนั้นงาน "Existing to be removed" ของหมวดโยธาจะกลายเป็นรหัส -EX
 ============================================================ */
-let CODE_LEN = 3;   // ความยาวรหัสที่ต้องการ (ปรับได้ในหน้าตั้งค่า)
 
-// คำที่ไม่สื่อความหมาย — ตัดทิ้งก่อนวิเคราะห์ (แก้ไขได้ในหน้าตั้งค่า ไม่ใช่ตารางรหัส)
+// 1) กฎ Regex → Section Code (เรียงจากเฉพาะเจาะจง → ทั่วไป) แก้ไข/เพิ่มได้ในหน้าตั้งค่า
+let RULES = [
+  // -- งานทดสอบ/ออกแบบ (ต้องมาก่อน fire/foundation) --
+  {code:'TEF', pattern:'test\\s+and\\s+commissioning'},
+  {code:'DYT', pattern:'dynamic\\s+pile\\s+load\\s+test'},
+  {code:'STT', pattern:'static\\s+pile\\s+load\\s+test'},
+  {code:'PBT', pattern:'(plate|pile)\\s+bearing\\s+test'},
+  {code:'ACE', pattern:'civil\\s+engineering\\s+design|architectural.*civil'},
+  {code:'FPD', pattern:'fire\\s+protection\\s+design'},
+  // -- ระบบดับเพลิง (1C9) — ต้องมาก่อนอาคาร (กันชนคำว่า GIS/Control Building) --
+  {code:'FPS', pattern:'fire\\s+protection\\s+(system|environmental)|fire\\s+pump|fire\\s+fighting|water\\s+storage\\s+tank'},
+  {code:'PIE', pattern:'earth\\s*work\\s+excavation.*ground|excavation.*filling.*ground'},
+  // -- อาคาร (1C3) --
+  {code:'CTR', pattern:'control\\s+building'},
+  {code:'SWG', pattern:'switchgear\\s+building|metal-?clad'},
+  {code:'GIS', pattern:'gis\\s+building|gas\\s+insulated\\s+switchgear|\\bgib\\b'},
+  {code:'SOL', pattern:'solar'},
+  // -- รางเคเบิล (1C2) --
+  {code:'CBT', pattern:'cable\\s+trench'},
+  // -- ระบบน้ำ (1C5) --
+  {code:'WSS', pattern:'water\\s+(supply|treatment|tank)|deep\\s+well|pump\\s+house|underground\\s+water|pipe\\s+sleeve'},
+  // -- ระบบระบายน้ำ (1C6) --
+  {code:'DNS', pattern:'drainage|oil\\s+pit|oil\\s+separator|sump|concrete\\s+gutter|reinforced\\s+concrete\\s+pipe|pvc\\.?\\s*pipe|black\\s+steel\\s+pipe'},
+  // -- ถนน/งานดิน (1C4) --
+  {code:'ROD', pattern:'embankment|stripping|sodding|retaining\\s+wall|crushed\\s+rock|rc\\.?\\s*road|\\broad\\b|transformer\\s+loading|rc\\s+covering'},
+  // -- ฐานราก (1C1) — ทั่วไป มาหลังหมวดเฉพาะ --
+  {code:'FDW', pattern:'foundation|rc\\.?\\s*slab|concrete\\s+pole|fire\\s+wall|skid\\s+base'},
+  // -- สำนักงาน/งานเบ็ดเตล็ด/ภูมิทัศน์ (1C7, 1C8) --
+  {code:'SOF', pattern:'site\\s+office'},
+  {code:'MLN', pattern:'wire\\s+mesh|fence|\\bgate\\b|guard\\s+house|garage|flag\\s*pole|sign\\s+board|entrance|water\\s+wall|symbol\\s+and\\s+sign'},
+  // -- งานพิเศษ/เตรียมการ (1C10) --
+  {code:'SPW', pattern:'special\\s+work|preliminary|overhead.*profit|subcontractor|dismantle|sand\\s+blasting|door\\s+phone|stage\\s*\\d|ladder.*(modify|repair)|pc\\.?\\s*or\\s*rc\\.?\\s*pile|motor.*gate'},
+  // ===== อุปกรณ์ไฟฟ้า (Part AB) — หมวดที่ระบุได้ชัด =====
+  {code:'SAT', pattern:'surge\\s+arrester'},
+  {code:'DTB', pattern:'distribution\\s+transformer'},
+  {code:'MSC', pattern:'marshalling\\s+control\\s+cubicle'},
+  {code:'CHA', pattern:'charger'},
+  {code:'BAT', pattern:'battery|electrolyte'},
+  {code:'OFC', pattern:'optical\\s+fiber'},
+  {code:'CCT', pattern:'cctv'},
+  {code:'GND', pattern:'ground\\s+rod|thermite\\s+welding|grounding\\s+hardware'},
+  {code:'RSC', pattern:'rigid\\s+steel\\s+conduit'},
+  {code:'HDP', pattern:'hdpe\\s+conduit'},
+  {code:'LED', pattern:'lighting\\s+fixture|led\\s+lamp|flood\\s+lighting|street\\s+lighting'},
+  {code:'ASW', pattern:'air\\s+switch'},
+  {code:'LRP', pattern:'lighting\\s+relay\\s+panel'},
+  {code:'LUS', pattern:'load\\s+center'},
+  {code:'DSS', pattern:'digital\\s+substation|\\bscada\\b|gateway\\s+software|fault\\s+recording'},
+  {code:'SST', pattern:'(take-?off|bus\\s+support|dead\\s*end|supporting)\\s+structure|steel\\s+support'},
+  {code:'PCA', pattern:'power\\s+cable'},
+  {code:'LCA', pattern:'(control|lighting)\\s+cable'},
+];
+
+// 2) หมวดโยธาที่มี variant "ของเดิม/รื้อถอน"  (Existing to be removed)
+const EX_MAP = { FDW:'FEX', CBT:'CEX', ROD:'REX', DNS:'DEX' };
+
+// ---- fallback: ย่อคำหลักอัตโนมัติ (ใช้เมื่อไม่มีกฎใดเข้า) ----
+let CODE_LEN = 3;
 let STOPWORDS = new Set(`a,an,the,of,for,to,and,or,with,in,on,at,by,is,are,be,as,if,from,
 included,include,includes,its,this,that,
 type,long,bored,pad,set,sets,unit,units,no,nos,each,
@@ -334,8 +415,6 @@ pile,dowel,bar,cut,off,shoe,require,required,requires,
 system,work,works,general,equipment,support,
 kv,kva,kvar,mm,cm,sqm,sq,ton,height,width,dia,diameter`
   .split(',').map(s=>s.trim()).filter(Boolean));
-
-// รูปแบบท้ายคำที่บ่งบอก "ประเภทงาน/โครงสร้าง" → ให้คะแนนพิเศษ (เป็นรูปแบบภาษา ไม่ใช่ตารางรหัส)
 const WORK_HINTS = ['ation','ment','wall','office','trench','slab','pole','fence','gate',
   'house','test','design','drain','road','yard','duct','tank','separator','beam','column','curb','pit','way'];
 
@@ -343,41 +422,47 @@ const WORK_HINTS = ['ation','ment','wall','office','trench','slab','pole','fence
    MAPPING ENGINE
 ============================================================ */
 
-// [Schedule Code] — derive from Item No. prefix.  1C1-5 → 1C , 1AB2-3 → 1AB
+// [Schedule Code] — จาก prefix ของ Item No.  1C1-5 → 1C , 1AB2-3 → 1AB
 function deriveSchedule(itemNo){
   if(!itemNo) return 'NA';
   const s = String(itemNo).trim();
-  let m = s.match(/^(\d+[A-Za-z]+)\d/);          // leading digits + letters + a group digit
+  let m = s.match(/^(\d+[A-Za-z]+)\d/);
   if(m) return m[1].toUpperCase();
-  m = s.match(/^([A-Za-z0-9]+?)[-\s.]/);          // fallback: token before first separator
+  m = s.match(/^([A-Za-z0-9]+?)[-\s.]/);
   if(m) return m[1].toUpperCase();
   return s.toUpperCase();
 }
 
-// ---------- helpers (text → keyword → code) ----------
+// ---------- regex matcher ----------
+function matchRule(desc){
+  const d=String(desc||'');
+  if(!d.trim()) return null;
+  for(const r of RULES){
+    try{ if(new RegExp(r.pattern,'i').test(d)) return r.code; }catch(e){}
+  }
+  return null;
+}
+
+// ---------- auto-abbrev fallback ----------
 function _clean(desc){
   return String(desc||'').toLowerCase()
-    .replace(/\([^)]*\)/g,' ')            // ตัดข้อความในวงเล็บ (รหัสอุปกรณ์ ฯลฯ)
-    .replace(/[0-9]+(?:\.[0-9]+)?/g,' ')  // ตัดตัวเลข
-    .replace(/[^a-z\s]/g,' ')             // เก็บเฉพาะตัวอักษร
-    .replace(/\s+/g,' ').trim();
+    .replace(/\([^)]*\)/g,' ').replace(/[0-9]+(?:\.[0-9]+)?/g,' ')
+    .replace(/[^a-z\s]/g,' ').replace(/\s+/g,' ').trim();
 }
-function _tokens(desc){
-  return _clean(desc).split(' ').filter(w => w.length>2 && !STOPWORDS.has(w));
-}
+function _tokens(desc){ return _clean(desc).split(' ').filter(w=>w.length>2 && !STOPWORDS.has(w)); }
 function _score(w,i){
-  let s = w.length - i;                    // คำที่มาก่อน/ยาวกว่า = สำคัญกว่า
-  for(const h of WORK_HINTS){ if(w.endsWith(h)){ s += 15; break; } }
-  if(w.endsWith('ing') && w.length>5) s += 12;   // stripping, grading, retaining…
+  let s=w.length-i;
+  for(const h of WORK_HINTS){ if(w.endsWith(h)){ s+=15; break; } }
+  if(w.endsWith('ing') && w.length>5) s+=12;
   return s;
 }
-function _pickPrimary(desc){                // เลือก "คำหลัก" ที่สื่อประเภทงานมากที่สุด
+function _pickPrimary(desc){
   const t=_tokens(desc); if(!t.length) return '';
   let best=t[0], bs=-1e9;
   t.forEach((w,i)=>{ const sc=_score(w,i); if(sc>bs){ bs=sc; best=w; } });
   return best;
 }
-function _abbrev(word,len){                 // ย่อคำ → รหัส (เน้นพยัญชนะ)
+function _abbrev(word,len){
   word=word.toUpperCase().replace(/[^A-Z]/g,''); if(!word) return 'GEN';
   let code=word[0];
   for(let i=1;i<word.length && code.length<len;i++) if(!'AEIOU'.includes(word[i])) code+=word[i];
@@ -385,29 +470,92 @@ function _abbrev(word,len){                 // ย่อคำ → รหัส 
   while(code.length<len) code+='X';
   return code.slice(0,len);
 }
-
-// [Section Code] — สร้างอัตโนมัติจากคำหลักใน Description (ไม่มี dictionary)
-function detectSection(desc){
-  const d=String(desc||'').toLowerCase();
-  if(!d.trim()) return 'GEN';
-  const primary=_pickPrimary(desc);
-  if(!primary) return 'GEN';
-  const removal=/(exist|removed|\bremove\b|relocat|demolish)/.test(d);   // งานรื้อ/ของเดิม
-  let code=_abbrev(primary, removal ? Math.max(2, CODE_LEN-1) : CODE_LEN);
-  if(removal) code += 'X';                  // variant สำหรับงานรื้อ/ของเดิม
-  return code;
+function autoAbbrev(desc){
+  const p=_pickPrimary(desc); return p ? _abbrev(p,CODE_LEN) : 'GEN';
 }
 
-// Build phase numbers for the whole list (running number per Schedule+Section, reset on change)
+// แปลงเป็น variant ของเดิม/รื้อถอน (เฉพาะหมวดโยธา และไม่ใช่ "relocated from existing")
+function applyExisting(base, desc){
+  const d=String(desc||'').toLowerCase();
+  if(/relocated\s+from\s+existing/.test(d)) return base;     // ของเดิมที่ย้ายมาใช้ → ไม่เปลี่ยน
+  if(/existing\s+to\s+be\s+removed/.test(d) && EX_MAP[base]) return EX_MAP[base];
+  return base;
+}
+
+// ลำดับชั้น Item No.: 1C3-1.1.4 เป็นลูกของ 1C3-1.1 และ 1C3-1
+function inheritFrom(containers, key){
+  let best=null, bestLen=-1;
+  for(const c of containers){
+    if(key!==c.key && key.startsWith(c.key + '.') && c.key.length>bestLen){ best=c.code; bestLen=c.key.length; }
+  }
+  return best;
+}
+
+// [Section Code] เดี่ยว (สำหรับ live preview)
+function detectSection(desc){
+  if(!String(desc||'').trim()) return 'GEN';
+  const base = matchRule(desc) || autoAbbrev(desc);
+  return applyExisting(base, desc);
+}
+
+/* ============================================================
+   [Full Description] — ย่อ Description ด้วย Regex ให้ ≤ 30 ตัวอักษร
+   1) ตัด boilerplate (Pile/Dowel…, as per…, installation fee…, www…)
+   2) ตัดคำขยายชนิดเสา/ฐาน (Long Pile Type, Pad Type)
+   3) ถ้ายังยาว → ย่อคำที่พบบ่อย (Foundation→Fdn …)
+   4) ตัดที่ขอบคำให้ไม่เกิน 30 ตัวอักษร
+============================================================ */
+const FULL_DESC_MAX = 30;
+function createFullDescription(desc){
+  let s = String(desc||'').replace(/\s+/g,' ').trim();
+  if(!s) return '';
+  const orig = s;
+  s = s
+    .replace(/\(\s*pile[^)]*\b(shoe|require)\b[^)]*\)?/ig,' ')             // ( Pile, Dowel bar … Pile shoe if require)
+    .replace(/,?\s*including\s+installation\s+fee.*$/ig,' ')               // …including installation fee (…)
+    .replace(/\(\s*not\s+higher\s+than[^)]*\)?/ig,' ')                     // (Not Higher than … www.bb.go.th)
+    .replace(/\bas\s+per\s+(egat'?s\s+)?(ratings?\s+and\s+features?|dwg|drawing|spec(ification)?)\b.*$/ig,' ')
+    .replace(/\bas\s+per\s+specification\s+attached\b/ig,' ')
+    .replace(/\bwww\.[^\s)]*/ig,' ')
+    .replace(/\(?\s*existing\s+to\s+be\s+removed\s*\)?/ig,' (existing)')   // ย่อ "Existing to be removed"
+    .replace(/\b(long\s+|short\s+|bored\s+)*pile\s*,?\s*(bored\s+pile\s+)?type\b/ig,' ')  // Long Pile Type / Pile, Bored pile Type
+    .replace(/\bpad\s+type\b/ig,' ')
+    .replace(/\s+/g,' ')
+    .replace(/[\s,;:.\-(]+$/,'')
+    .trim();
+  if(!s) s = orig;
+  if(s.length > FULL_DESC_MAX){                          // ย่อคำที่พบบ่อยทีละขั้นจนพอดี
+    const ABBR=[[/\bcircuit\s+breaker\b/ig,'CB'],[/\bair\s+conditioner\b/ig,'A/C'],
+      [/\bsplit-?type\b/ig,'split'],[/\bfoundation\b/ig,'Fdn'],[/\bstructure\b/ig,'Str'],
+      [/\bbuilding\b/ig,'Bldg'],[/\bsystem\b/ig,'Sys'],[/\btransformer\b/ig,'Tx'],
+      [/\bdisconnecting\b/ig,'Disc'],[/\bswitchgear\b/ig,'Swgr'],[/\bstandard\b/ig,'Std'],
+      [/\bsupport\b/ig,'Supp'],[/\bstation\b/ig,'Stn'],[/\binsulator\b/ig,'Insul']];
+    for(const [re,rep] of ABBR){ if(s.length<=FULL_DESC_MAX) break; s=s.replace(re,rep); }
+    s=s.replace(/\s+/g,' ').trim();
+  }
+  if(s.length > FULL_DESC_MAX){                          // ตัดที่ขอบคำ
+    s = s.slice(0,FULL_DESC_MAX).replace(/\s+\S*$/,'').trim();
+    if(!s) s = String(desc).replace(/\s+/g,' ').trim().slice(0,FULL_DESC_MAX).trim();
+  }
+  return s;
+}
+
+// สร้าง Phase No. ทั้งชุด (running เริ่มใหม่เมื่อ Schedule+Section เปลี่ยน) + สืบทอดหัวข้อแม่
 function recomputeRunning(){
-  const counter = {};
+  const counter={}, containers=[];
   RECORDS.forEach(r=>{
     r.schedule_code = deriveSchedule(r.item_no);
-    r.section_code  = detectSection(r.description);
-    r.xx_code       = '00';
-    const key = r.schedule_code + '|' + r.section_code;
-    counter[key] = (counter[key] || 0) + 1;
-    r.running_no  = String(counter[key]).padStart(2,'0');
+    const key = String(r.item_no||'').trim();
+    let base = matchRule(r.description);              // 1) regex
+    if(!base && key) base = inheritFrom(containers, key);  // 2) สืบทอดหัวข้อแม่
+    if(!base) base = autoAbbrev(r.description);       // 3) ย่อคำหลัก
+    base = applyExisting(base, r.description);
+    r.section_code = base; r.xx_code='00';
+    r.full_desc = createFullDescription(r.description);    // Full Description ≤ 30 ตัวอักษร
+    if(key) containers.push({ key, code:base });
+    const ck = r.schedule_code+'|'+r.section_code;
+    counter[ck] = (counter[ck]||0)+1;
+    r.running_no = String(counter[ck]).padStart(2,'0');
     r.full_phase_no = `${r.schedule_code}-${r.section_code}-${r.xx_code}-${r.running_no}`;
   });
 }
@@ -602,9 +750,11 @@ function parsePdfLine(text){
 function livePreview(){
   const item = document.getElementById('mItemNo').value;
   const desc = document.getElementById('mDesc').value;
-  if(!item && !desc){ document.getElementById('mPreview').textContent='—'; return; }
+  const fd = document.getElementById('mFullDesc');
+  if(!item && !desc){ document.getElementById('mPreview').textContent='—'; if(fd) fd.textContent='—'; return; }
   const sch=deriveSchedule(item), sec=detectSection(desc);
   document.getElementById('mPreview').textContent = `${sch}-${sec}-00-NN`;
+  if(fd){ const f=createFullDescription(desc); fd.textContent = f || '—'; }
 }
 function addManual(){
   const item = document.getElementById('mItemNo').value.trim();
@@ -668,6 +818,7 @@ function render(){
       <td class="px-3 py-2.5 text-center font-mono text-slate-400">${r.xx_code}</td>
       <td class="px-3 py-2.5 text-center font-mono text-slate-600">${r.running_no}</td>
       <td class="px-3 py-2.5"><span class="font-mono font-700 text-emerald-600">${r.full_phase_no}</span></td>
+      <td class="px-4 py-2.5 text-slate-700"><div class="truncate max-w-[230px]" title="${esc(r.full_desc)}">${esc(r.full_desc)||'<span class="text-slate-300">—</span>'}</div></td>
       <td class="px-4 py-2.5 text-slate-500 max-w-md"><div class="truncate" title="${esc(r.description)}">${esc(r.description)||'<span class="text-slate-300">—</span>'}</div></td>
       <td class="px-3 py-2.5 text-right"><button onclick="removeRow(${idx})" class="text-slate-300 hover:text-rose-500 transition" title="ลบ">✕</button></td>
     </tr>`;
@@ -691,11 +842,11 @@ function exportTemplate(){
   // Sheet 2 "ตัวอย่าง" — โชว์รูปแบบและผลลัพธ์ที่ระบบจะสร้าง (ไม่ถูกนำเข้า)
   const ex = [
     ['Item No.','Description','→ Phase No. (สร้างอัตโนมัติ)'],
-    ['1C1-1','Transformer Foundation Pile Type','1C-FND-00-01'],
-    ['1C1-2','115 kV Take off Structure Foundation','1C-FND-00-02'],
-    ['1C4-1','Embankment for site preparation','1C-EMB-00-01'],
-    ['1C3-2','115 kV GIS Building','1C-BLD-00-01'],
-    ['1C6-4','Drainage System (Existing to be removed)','1C-DRX-00-01'],
+    ['1C1-1','Transformer Foundation Pile Type','1C-FDW-00-01'],
+    ['1C1-2','115 kV Take off Structure Foundation','1C-FDW-00-02'],
+    ['1C4-1','Embankment for site preparation','1C-ROD-00-01'],
+    ['1C3-2','115 kV GIS Building','1C-GIS-00-01'],
+    ['1C6-4','Drainage System (Existing to be removed)','1C-DEX-00-01'],
     ['','',''],
     ['วิธีใช้:','กรอก Item No. และ Description ในชีต "Template" แล้วอัปโหลดไฟล์กลับเข้าระบบ','ระบบจะสร้าง Phase No. ให้อัตโนมัติ'],
   ];
@@ -725,10 +876,10 @@ function exportExcel(){
   const aoa=view.map(r=>({
     'Item No.':r.item_no,'Schedule Code':r.schedule_code,'Section Code':r.section_code,
     'XX':r.xx_code,'Running No.':r.running_no,'Full Phase No.':r.full_phase_no,
-    'Description':r.description,'Source File':r.source_file||''
+    'Full Description':r.full_desc,'Description':r.description,'Source File':r.source_file||''
   }));
   const ws=XLSX.utils.json_to_sheet(aoa);
-  ws['!cols']=[{wch:14},{wch:14},{wch:14},{wch:6},{wch:10},{wch:20},{wch:60},{wch:22}];
+  ws['!cols']=[{wch:14},{wch:14},{wch:14},{wch:6},{wch:10},{wch:20},{wch:32},{wch:60},{wch:22}];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'PhaseMappings');
   XLSX.writeFile(wb, `phase_mappings_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast(`ส่งออก ${view.length} รายการเป็น Excel แล้ว`,'ok');
@@ -783,7 +934,30 @@ function setStopwords(v){ STOPWORDS=new Set(v.split(',').map(s=>s.trim().toLower
 function initEngineUI(){
   document.getElementById('codeLen').value=CODE_LEN;
   document.getElementById('stopwords').value=[...STOPWORDS].join(', ');
+  renderRules();
 }
+
+/* ----- Regex rules editor ----- */
+function renderRules(){
+  const body=document.getElementById('rulesBody'); if(!body) return;
+  body.innerHTML = RULES.map((r,i)=>{
+    const c=colorForCode(r.code);
+    return `<tr class="border-t border-blue-50">
+      <td class="px-3 py-1.5"><input value="${esc(r.code)}" onchange="updateRule(${i},'code',this.value)"
+            class="w-20 bg-${c}-50 text-${c}-700 font-mono font-700 border border-${c}-200 rounded px-2 py-1 text-xs outline-none focus:border-blue-500"></td>
+      <td class="px-3 py-1.5"><input value="${esc(r.pattern)}" onchange="updateRule(${i},'pattern',this.value)"
+            class="w-full bg-white border border-blue-100 focus:border-blue-500 rounded px-2 py-1 text-xs font-mono outline-none"></td>
+      <td class="px-2 py-1.5 text-center"><button onclick="deleteRule(${i})" class="text-slate-300 hover:text-rose-500" title="ลบกฎ">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+function updateRule(i,field,val){
+  if(field==='code') RULES[i].code=val.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||'GEN';
+  else RULES[i].pattern=val;
+  recomputeRunning(); render(); renderRules();
+}
+function addRule(){ RULES.unshift({code:'NEW', pattern:''}); renderRules(); }
+function deleteRule(i){ RULES.splice(i,1); recomputeRunning(); render(); renderRules(); }
 function renderCodePreview(){
   const el=document.getElementById('codePreview'); if(!el) return;
   const seen={};
