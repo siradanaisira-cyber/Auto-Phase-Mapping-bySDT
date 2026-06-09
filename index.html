@@ -502,10 +502,18 @@ function detectSection(desc){
    [Full Description] — ย่อ Description ด้วย Regex ให้ ≤ 30 ตัวอักษร
    1) ตัด boilerplate (Pile/Dowel…, as per…, installation fee…, www…)
    2) ตัดคำขยายชนิดเสา/ฐาน (Long Pile Type, Pad Type)
-   3) ถ้ายังยาว → ย่อคำที่พบบ่อย (Foundation→Fdn …)
-   4) ตัดที่ขอบคำให้ไม่เกิน 30 ตัวอักษร
+   3) ถ้ายังยาว → ตัดโทเค็นตัวเลข/มิติ/หน่วยวัด (อ่านคำที่เป็นตัวอักษรเป็นหลัก ก่อนตัวเลข)
+   4) ถ้ายังยาว → ย่อคำที่พบบ่อย (Foundation→Fdn …)
+   5) ตัดที่ขอบคำให้ไม่เกิน 30 ตัวอักษร
 ============================================================ */
 const FULL_DESC_MAX = 30;
+// โทเค็นที่เป็น "ตัวเลข/มิติ" เช่น 230, 1.5, 1,200, 1200x1200, 230kV, 50mm, (50), x2, #4
+function isNumericToken(t){
+  const c = String(t).replace(/^[([]+|[)\].,;:]+$/g,'').replace(/,/g,'');   // ตัดวงเล็บ/เครื่องหมายขอบ
+  if(!c) return false;
+  if(/^[#xX×*Ø⌀]?\d/.test(c)) return true;                                  // ขึ้นต้นด้วยตัวเลข (รวมมิติ/หน่วยที่ติดเลข)
+  return /^(kv|mva|kva|kw|kvar|hz|mm|cm|km|sq\.?m\.?|cu\.?m\.?|%)$/i.test(c); // โทเค็นหน่วยวัดเดี่ยว ๆ
+}
 function createFullDescription(desc){
   let s = String(desc||'').replace(/\s+/g,' ').trim();
   if(!s) return '';
@@ -524,6 +532,11 @@ function createFullDescription(desc){
     .replace(/[\s,;:.\-(]+$/,'')
     .trim();
   if(!s) s = orig;
+  if(s.length > FULL_DESC_MAX){                          // [ตัวอักษรก่อนตัวเลข] ตัดโทเค็นตัวเลข/มิติ/หน่วยวัด ให้เหลือคำที่อ่านเป็นประโยค
+    const words = s.split(' ').filter(t => t && !isNumericToken(t));
+    const s2 = words.join(' ').replace(/\s+/g,' ').replace(/[\s,;:.\-(]+$/,'').trim();
+    if(s2) s = s2;                                       // ใช้เฉพาะคำตัวอักษร (เว้นไว้ถ้าเหลือว่าง)
+  }
   if(s.length > FULL_DESC_MAX){                          // ย่อคำที่พบบ่อยทีละขั้นจนพอดี
     const ABBR=[[/\bcircuit\s+breaker\b/ig,'CB'],[/\bair\s+conditioner\b/ig,'A/C'],
       [/\bsplit-?type\b/ig,'split'],[/\bfoundation\b/ig,'Fdn'],[/\bstructure\b/ig,'Str'],
