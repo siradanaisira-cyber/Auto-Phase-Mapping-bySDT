@@ -134,9 +134,9 @@
             <th class="text-left px-3 py-3 font-600">Section</th>
             <th class="text-center px-3 py-3 font-600">X</th>
             <th class="text-center px-3 py-3 font-600">Running</th>
-            <th class="text-left px-3 py-3 font-600">Full Phase No.</th>
-            <th class="text-left px-4 py-3 font-600">Full Description <span class="text-slate-400 normal-case">(≤30)</span></th>
-            <th class="text-left px-4 py-3 font-600">Description</th>
+            <th class="text-left px-3 py-3 font-600">Project Phase</th>
+            <th class="text-left px-4 py-3 font-600">Description <span class="text-slate-400 normal-case">(≤30)</span></th>
+            <th class="text-left px-4 py-3 font-600">Full Description</th>
             <th class="px-3 py-3"></th>
           </tr>
         </thead>
@@ -902,6 +902,24 @@ function exportTemplate(){
 /* ============================================================
    EXPORT TO EXCEL (current filtered view)
 ============================================================ */
+// หัวคอลัมน์ของชีต phase_epicor (อ้างอิงจากไฟล์ phase_mappings.xlsx — 372 คอลัมน์ ตามลำดับเดิม)
+const EPICOR_HEADERS = ["Project Phase","Description","ParentPhase","Display Sort Sequence","Phase Status","Percent Complete","Start Date","Due Date","Date Complete","Duration","DurationType","Job","Operation Description","PartNum","RevisionNum","Invoicing Method","RevMethod","Order Number","Order Line","Was Recognised","LastBuildWBSPhaseAnalysisDate","Percentage of Completion","Labor Cost To Be Recognized","Burden Cost To Be Recognized","Material Cost To Be Recognized","Subcontract Cost To Be Recognized","Material Burden Cost To Be Recognized","ODC Cost To Be Recognized","Revenue To Be Recognized","Recognize Revenue at Child WBS Phase","Roll Budgets to WBS Phase","TotWBSPhaseRev","Sales Category","ActMtlNonJobCost","AsOfDate","Posted Burden number","Last Added Recalculation","BdnRevenueAutoToday","BillingToDate","BuildAnalysis","BurdenCostOfSales","BurdenLbrCstToDate","BurdenRecAutoCstTodate","BurdenRecManCstTodate","BurManPosted","BurPur","Est. Bur. Cost","Est. Bur. Hrs","Est. Lbr. Cost","Est. Lbr. Hrs","Est. MtlBur. Cost","Est. Mtl. Cost","Est. ODC","Est. Sub. Cost","LaborCostOfSales","LaborLbrCstToDate","LaborRecAutoCstTodate","LaborRecManCstTodate","LbrManPosted","LbrPur","MaterialCostOfSales","MaterialRecAutoCstTodate","MaterialRecManCstTodate","MtlBurdenCostOfSales","MtlBurdenRecAutoCstTodate","MtlBurdenRecManCstTodate","MtlBurManPosted","MtlBurPur","MtlManPosted","MtlPur","NextTmpInvcNum","ODCManPosted","ODCPur","ODC Recognition To Date","ODC Manual Recognition To Date","RecManPosted","RecogToDtBilling","RecogToDtLbk","RecogToDtManual","RetentionDt","RevenueRecAutoToDate","RevenueRecManToDate","Reverse","RollManEstToCpte","Measured Work ID","SubCManPosted","SubConCostOfSales","SubConRecAutoCstTodate","SubConRecManCstTodate","SubPur","Contract Total Value","Doc Contract Total Value","Rpt Contract Total Value","Rpt Contract Total Value","Rpt Contract Total Value","Net Contract Total Value","Net Doc Contract Total Value","Net Rpt Contract Total Value","Approvals Method","Net Rpt Contract Total Value","Net Rpt Contract Total Value","Time Workflow Group","CloseWBSJob","Currency Code","Approvals Method","DocBudTotBurCost","DocBudTotLbrCost","Expense Workflow Group","DocBudTotMtlBurCost","DocBudTotMtlCost","ODC Budget Total","DocGTActualCost","DocGTBudgetCost","DocGTCalculatedCost","Description","DocGTEstimatedCost","Description","DocGTManualCost","DocGTQuotedCost","ID","DocManEstCtcBurCost","ID","DocManEstCtcLbrCost","Description","DocManEstCtcMtlBurCost","Description","DocManEstCtcMtlCost","ODC Manual CTC","DocManEstCtcSubConCost","Projected Total Burden Cost","Projected Total Cost","Projected Total Labor Cost","Projected Total Material Burden Cost","Projected Total Material Cost","Projected Total ODC Cost","Projected Total Sub Contract Cost","DocTotActSubContCost","DocTotCtcBurCost","DocTotCtcLbrCost","DocTotCtcMtlBurCost","DocTotCtcMtlCost","ODC Total CTC","DocTotCtcSubConCost","DocTotEstBurCost","DocTotEstLbrCost","DocTotEstMtlBurCost","DocTotEstMtlCost","DocTotEstODCCost","DocTotEstSubContCost","DocTotQuotBurCost","DocTotQuotLbrCost","DocTotQuotMtlBurCost","DocTotQuotMtlCost","ODC Quoted","DocTotQuotSubContCost","EnableRecognizeRevenueAtChildPhaseLevel","EnableUpdOper","EngineerWBSJob","IsRootPhase","JobDueDate","JobStartDate","ParentPhaseIsRootPhase","Invoicing Method","Revenue Recognition Method","Projected Total Burden Cost","Projected Total Cost","Projected Total Labor Cost","Projected Total Material Burden Cost","Projected Total Material Cost","Projected Total ODC Cost","Projected Total Sub Contract Cost","ProjPhaseID","ReleaseWBSJob","Rpt1BudTotBurCost","Rpt1BudTotLbrCost","Rpt1BudTotMtlBurCost","Rpt1BudTotMtlCost","ODC Budget Total","Rpt1BudTotSubCost","Rpt1GTActualCost","Rpt1GTBudgetCost","Rpt1GTCalculatedCost","Rpt1GTEstimatedCost","Rpt1GTManualCost","Rpt1GTQuotedCost","Rpt1ManEstCtcBurCost","Rpt1ManEstCtcLbrCost","Rpt1ManEstCtcMtlBurCost","Rpt1ManEstCtcMtlCost","ODC Manual CTC","Rpt1ManEstCtcSubConCost","Projected Total Burden Cost","Projected Total Cost","Projected Total Labor Cost","Projected Total Material Burden Cost","Projected Total Material Cost","Projected Total ODC Cost","Projected Total Sub Contract Cost","Rpt1TotActBurCost","Rpt1TotActLbrCost","Rpt1TotActMtlBurCost","Rpt1TotActMtlCost","Rpt1TotActODCCost","Rpt1TotActSubContCost","Rpt1TotCtcBurCost","Rpt1TotCtcLbrCost","Rpt1TotCtcMtlBurCost","Rpt1TotCtcMtlCost","ODC Total CTC","Rpt1TotCtcSubConCost","Rpt1TotEstBurCost","Rpt1TotEstLbrCost","Rpt1TotEstMtlBurCost","Rpt1TotEstMtlCost","Rpt1TotEstODCCost","Rpt1TotEstSubContCost","Rpt1TotQuotBurCost","Rpt1TotQuotLbrCost","Rpt1TotQuotMtlBurCost","Rpt1TotQuotMtlCost","ODC Quoted","Rpt1TotQuotSubContCost","Rpt2BudTotBurCost","Rpt2BudTotLbrCost","Rpt2BudTotMtlBurCost","Rpt2BudTotMtlCost","ODC Budget Total","Rpt2BudTotSubCost","Rpt2GTActualCost","Rpt2GTBudgetCost","Rpt2GTCalculatedCost","Rpt2GTEstimatedCost","Rpt2GTManualCost","Rpt2GTQuotedCost","Rpt2ManEstCtcBurCost","Rpt2ManEstCtcLbrCost","Rpt2ManEstCtcMtlBurCost","Rpt2ManEstCtcMtlCost","ODC Manual CTC","Rpt2ManEstCtcSubConCost","Projected Total Burden Cost","Projected Total Cost","Projected Total Labor Cost","Projected Total Material Burden Cost","Projected Total Material Cost","Projected Total ODC Cost","Projected Total Sub Contract Cost","Rpt2TotActBurCost","Rpt2TotActLbrCost","Rpt2TotActMtlBurCost","Rpt2TotActMtlCost","Rpt2TotActODCCost","Rpt2TotActSubContCost","Rpt2TotCtcBurCost","Rpt2TotCtcLbrCost","Rpt2TotCtcMtlBurCost","Rpt2TotCtcMtlCost","ODC Total CTC","Rpt2TotCtcSubConCost","Rpt2TotEstBurCost","Rpt2TotEstLbrCost","Rpt2TotEstMtlBurCost","Rpt2TotEstMtlCost","Rpt2TotEstODCCost","Rpt2TotEstSubContCost","Rpt2TotQuotBurCost","Rpt2TotQuotLbrCost","Rpt2TotQuotMtlBurCost","Rpt2TotQuotMtlCost","ODC Quoted","Rpt2TotQuotSubContCost","Rpt3BudTotBurCost","Rpt3BudTotLbrCost","Rpt3BudTotMtlBurCost","Rpt3BudTotMtlCost","ODC Budget Total","Rpt3BudTotSubCost","Rpt3GTActualCost","Rpt3GTBudgetCost","Rpt3GTCalculatedCost","Rpt3GTEstimatedCost","Rpt3GTManualCost","Rpt3GTQuotedCost","Rpt3ManEstCtcBurCost","Rpt3ManEstCtcLbrCost","Rpt3ManEstCtcMtlBurCost","Rpt3ManEstCtcMtlCost","ODC Manual CTC","Rpt3ManEstCtcSubConCost","Projected Total Burden Cost","Projected Total Cost","Projected Total Labor Cost","Projected Total Material Burden Cost","Projected Total Material Cost","Projected Total ODC Cost","Projected Total Sub Contract Cost","Rpt3TotActBurCost","Rpt3TotActLbrCost","Rpt3TotActMtlBurCost","Rpt3TotActMtlCost","Rpt3TotActODCCost","Rpt3TotActSubContCost","Rpt3TotCtcBurCost","Rpt3TotCtcLbrCost","Rpt3TotCtcMtlBurCost","Rpt3TotCtcMtlCost","ODC Total CTC","Rpt3TotCtcSubConCost","Rpt3TotEstBurCost","Rpt3TotEstLbrCost","Rpt3TotEstMtlBurCost","Rpt3TotEstMtlCost","Rpt3TotEstODCCost","Rpt3TotEstSubContCost","Rpt3TotQuotBurCost","Rpt3TotQuotLbrCost","Rpt3TotQuotMtlBurCost","Rpt3TotQuotMtlCost","ODC Quoted","Rpt3TotQuotSubContCost","DocBudTotSubCost","DocTotActBurCost","DocTotActLbrCost","DocTotActMtlBurCost","DocTotActMtlCost","DocTotActODCCost","Due Date (BCWS)","BudRevise Burden","BudRevise Burden Hours","BudRevise Labor","BudRevise Labor Hours","BudRevise Material","BudRevise Mtl Burden","BudRevise ODC","BudRevise Sub Contract","BudRevise Totals","ConditionCode Pay","ConditionCode Plan","Confirm Price","Project Cost to Go Burden","Project Cost to Go Burden Hours","Project Cost to Go Labor","Project Cost to Go Labor Hours","Project Cost to Go Material","Project Cost to Go Mtl Burden","Project Cost to Go ODC","Project Cost to Go Sub Contract","Project Cost to Go Totals","Actual","Amount","Due Date (Revise)","Customer Due Date","Revise  Unit Price","Revise Quarter Amount","Revise Quarter Unit Price","Revise Quarter Qty","Qty","Revise Amount","Revise Qty","Unit Price","UOM","Terms","Condition Pattern","Condition Pattern","Payment Date","PO Date","Purchasing Terms","PSP_PlanRecDate_c","Amount","Qty","Unit Price","UOM"];
+
+// สร้างชีต phase_epicor — เติมเฉพาะ Project Phase, Description, ParentPhase ที่เหลือใส่ 0
+function buildEpicorSheet(view, parentPhase){
+  const aoa = [EPICOR_HEADERS.slice()];
+  view.forEach(r=>{
+    const row = new Array(EPICOR_HEADERS.length).fill(0);
+    row[0] = r.full_phase_no;     // Project Phase
+    row[1] = r.full_desc;         // Description (≤30)
+    row[2] = parentPhase;         // ParentPhase (รหัส Job)
+    aoa.push(row);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = EPICOR_HEADERS.map((h,i)=> i<3 ? {wch:22} : {wch:Math.max(10,Math.min(h.length+2,32))});
+  return ws;
+}
+
 function exportExcel(){
   const q=document.getElementById('searchBox').value.toLowerCase();
   const fS=document.getElementById('filterSchedule').value, fSec=document.getElementById('filterSection').value;
@@ -912,16 +930,33 @@ function exportExcel(){
     return true;
   });
   if(!view.length){ toast('ไม่มีข้อมูลให้ส่งออก','error'); return; }
+  // คอลัมน์อ้างอิงตาราง phase_mappings — Full Phase No.→Project Phase, Full Description(≤30)→Description,
+  // description ต้นฉบับ→Full Description (เรียงลำดับฟิลด์แบบ DB + Source File)
   const aoa=view.map(r=>({
-    'Item No.':r.item_no,'Schedule Code':r.schedule_code,'Section Code':r.section_code,
-    'X':r.xx_code,'Running No.':r.running_no,'Full Phase No.':r.full_phase_no,
-    'Full Description':r.full_desc,'Description':r.description,'Source File':r.source_file||''
+    'Item No.':r.item_no,
+    'Description':r.full_desc,
+    'Full Description':r.description,
+    'Schedule':r.schedule_code,
+    'Section':r.section_code,
+    'X':r.xx_code,
+    'Running':r.running_no,
+    'Project Phase':r.full_phase_no,
+    'Source File':r.source_file||''
   }));
   const ws=XLSX.utils.json_to_sheet(aoa);
-  ws['!cols']=[{wch:14},{wch:14},{wch:14},{wch:6},{wch:10},{wch:20},{wch:32},{wch:60},{wch:22}];
+  ws['!cols']=[{wch:14},{wch:32},{wch:60},{wch:12},{wch:12},{wch:6},{wch:10},{wch:20},{wch:22}];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'PhaseMappings');
+
+  // ชีตที่ 2: phase_epicor — ถามรหัส Job / ParentPhase (จำค่าล่าสุดไว้ใช้ครั้งต่อไป)
+  const lastParent = store.get('epicor_parent') || '';
+  let parent = prompt('กรอกรหัส Job / ParentPhase สำหรับชีต phase_epicor\n(ใช้ค่าเดียวกันทุกแถว · เว้นว่าง = 0):', lastParent);
+  if(parent===null) parent = lastParent;            // กดยกเลิก → ใช้ค่าล่าสุด
+  parent = String(parent).trim();
+  if(parent) store.set('epicor_parent', parent);
+  XLSX.utils.book_append_sheet(wb, buildEpicorSheet(view, parent || 0), 'phase_epicor');
+
   XLSX.writeFile(wb, `phase_mappings_${new Date().toISOString().slice(0,10)}.xlsx`);
-  toast(`ส่งออก ${view.length} รายการเป็น Excel แล้ว`,'ok');
+  toast(`ส่งออก ${view.length} รายการ (2 ชีต: PhaseMappings + phase_epicor) แล้ว`,'ok');
 }
 
 /* ============================================================
